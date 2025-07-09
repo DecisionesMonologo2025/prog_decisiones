@@ -10,11 +10,6 @@
       width: 100%; height: 100%;
       overflow: hidden;
       background: black;
-      user-select: none;
-      -webkit-user-select: none;
-      -ms-user-select: none;
-      -webkit-touch-callout: none;
-      touch-action: none;
     }
     canvas {
       display: block;
@@ -39,17 +34,12 @@
     .controls img {
       width: 100%;
       height: auto;
-      user-select: none;
-      -webkit-user-select: none;
-      -ms-user-select: none;
-      -webkit-touch-callout: none;
     }
   </style>
 </head>
 <body>
   <canvas id="game" width="360" height="640"></canvas>
 
-  <!-- Audio solo una vez -->
   <audio id="bgm" src="fondo_decisiones.mp3" loop></audio>
   <audio id="steps" src="pasos_decisiones.mp3" loop></audio>
 
@@ -223,20 +213,33 @@
     document.body.addEventListener('click', inicializarAudio, { once: true });
     document.body.addEventListener('touchstart', inicializarAudio, { once: true });
 
-    // 🚫 BLOQUEO DE POP-OUTS MÓVILES
+    // 🔇 Pausar audio si el usuario cambia de pestaña
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        bgm.pause();
+        pasos.pause();
+      } else {
+        if (audioInicializado) {
+          bgm.play().catch(() => {});
+        }
+      }
+    });
+  </script>
+
+  <script>
+    // 🛡️ Bloqueo de menú contextual, arrastre y selección en móviles
     document.querySelectorAll('img, button').forEach(el => {
       el.oncontextmenu = e => e.preventDefault();
       el.onselectstart = e => e.preventDefault();
       el.onmousedown = e => e.preventDefault();
       el.ontouchstart = e => {
-        if (e.touches.length === 1) e.preventDefault();
+        if (e.touches.length > 1) e.preventDefault();
       };
       el.setAttribute('draggable', 'false');
       el.style.userSelect = 'none';
       el.style.webkitUserSelect = 'none';
       el.style.msUserSelect = 'none';
       el.style.webkitTouchCallout = 'none';
-      el.style.touchAction = 'none';
     });
   </script>
 </body>
