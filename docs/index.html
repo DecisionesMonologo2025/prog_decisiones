@@ -214,5 +214,20 @@
     document.body.addEventListener('click', inicializarAudio, { once: true });
     document.body.addEventListener('touchstart', inicializarAudio, { once: true });
   </script>
+ <script>
+ document.querySelectorAll('img, button').forEach(el => {
+      el.oncontextmenu = e => e.preventDefault();
+      el.onselectstart = e => e.preventDefault();
+      el.onmousedown = e => e.preventDefault();
+      el.ontouchstart = e => {
+        if (e.touches.length > 1) e.preventDefault();
+      };
+      el.setAttribute('draggable', 'false');
+      el.style.userSelect = 'none';
+      el.style.webkitUserSelect = 'none';
+      el.style.msUserSelect = 'none';
+      el.style.webkitTouchCallout = 'none';
+    });
+  </script>
 </body>
 </html>
