@@ -60,10 +60,7 @@
       '5.Adrián.png'
     ];
 
-    const escenarioActual = {
-      index: 2,
-      total: escenas.length
-    };
+    const escenarioActual = { index: 2, total: escenas.length };
 
     const jugador = {
       x: 50,
@@ -213,21 +210,28 @@
     document.body.addEventListener('click', inicializarAudio, { once: true });
     document.body.addEventListener('touchstart', inicializarAudio, { once: true });
 
-    // 🔇 Pausar audio si el usuario cambia de pestaña
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        bgm.pause();
-        pasos.pause();
-      } else {
-        if (audioInicializado) {
-          bgm.play().catch(() => {});
-        }
+    // 🔇 Pausar música al cambiar de pestaña o app
+    function pausarTodo() {
+      bgm.pause();
+      pasos.pause();
+    }
+
+    function reanudarTodo() {
+      if (audioInicializado) {
+        bgm.play().catch(() => {});
       }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) pausarTodo();
+      else reanudarTodo();
     });
+
+    window.addEventListener('blur', pausarTodo);
+    window.addEventListener('focus', reanudarTodo);
   </script>
 
   <script>
-    // 🛡️ Bloqueo de menú contextual, arrastre y selección en móviles
     document.querySelectorAll('img, button').forEach(el => {
       el.oncontextmenu = e => e.preventDefault();
       el.onselectstart = e => e.preventDefault();
