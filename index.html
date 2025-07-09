@@ -18,15 +18,15 @@
     }
     .controls {
       position: absolute;
-      bottom: 10px;
+      bottom: 30px;
       width: 100%;
       display: flex;
       justify-content: center;
       gap: 40px;
     }
     .controls button {
-      width: 64px;
-      height: 64px;
+      width: 80px;
+      height: 100px;
       background: none;
       border: none;
       cursor: pointer;
@@ -40,10 +40,12 @@
 <body>
   <canvas id="game" width="360" height="640"></canvas>
 
-  <!-- Audio solo una vez -->
+  <!-- Audios -->
   <audio id="bgm" src="fondo_decisiones.mp3" loop></audio>
   <audio id="steps" src="pasos_decisiones.mp3" loop></audio>
+  <audio id="ring" src="ring_decisiones.mp3" loop></audio>
 
+  <!-- Botones -->
   <div class="controls">
     <button id="left"><img src="boton_izquierdo.png" alt="Izquierda"></button>
     <button id="right"><img src="boton_derecho.png" alt="Derecha"></button>
@@ -54,17 +56,16 @@
     const ctx = canvas.getContext('2d');
 
     const escenas = [
+      '0.Teatro.png',
       '1.Javier.png',
       '2.Christian.png',
       '3.Intro.png',
       '4.Abraham.png',
-      '5.Adrián.png'
+      '5.Adrián.png',
+      '6.Fantasmas.png'
     ];
 
-    const escenarioActual = {
-      index: 2,
-      total: escenas.length
-    };
+    const escenarioActual = { index: 3, total: escenas.length };
 
     const jugador = {
       x: 50,
@@ -81,6 +82,9 @@
     const escenario = new Image();
     escenario.src = escenas[escenarioActual.index];
 
+    const imagenDialogo = new Image();
+    imagenDialogo.src = 'dialogo_no_puedo_contestar.png';
+
     let assetsCargados = 0;
 
     jugador.spriteSheet.onload = () => {
@@ -95,6 +99,7 @@
 
     const pasos = document.getElementById('steps');
     const bgm = document.getElementById('bgm');
+    const ring = document.getElementById('ring');
 
     const escala = 0.3;
     const anchoVisible = jugador.frameWidth * escala;
@@ -105,34 +110,45 @@
 
       const cols = 3;
       const sx = (jugador.frame % cols) * jugador.frameWidth;
-
-      let fila = 0;
-      if (jugador.dir === 'left') fila = 2;
-      else if (!jugador.walking) fila = 1;
-
+      let fila = jugador.dir === 'left' ? 2 : (!jugador.walking ? 1 : 0);
       const sy = fila * jugador.frameHeight;
+
+      const xDraw = Math.floor(jugador.x);
+      const yDraw = Math.floor(jugador.y);
 
       ctx.drawImage(
         jugador.spriteSheet,
         sx, sy,
         jugador.frameWidth, jugador.frameHeight,
-        Math.floor(jugador.x), Math.floor(jugador.y),
+        xDraw, yDraw,
         jugador.frameWidth * escala, jugador.frameHeight * escala
       );
+
+      if (
+        escenas[escenarioActual.index] === '6.Fantasmas.png' &&
+        jugador.x > 120 && jugador.x < 180
+      ) {
+        const escalaDialogo = 0.25;
+        const dialogoWidth = imagenDialogo.width * escalaDialogo;
+        const dialogoHeight = imagenDialogo.height * escalaDialogo;
+        const posX = xDraw - 10;
+        const posY = yDraw - dialogoHeight - 10;
+        ctx.drawImage(imagenDialogo, posX, posY, dialogoWidth, dialogoHeight);
+      }
     }
 
     function update() {
       if (jugador.walking) {
         jugador.frame = (jugador.frame + 1) % 4;
-
+        const velocidad = 25;
         if (jugador.dir === 'right') {
-          jugador.x += 25;
+          jugador.x += velocidad;
           if (jugador.x > canvas.width) {
             changeScene(1);
             jugador.x = -anchoVisible;
           }
-        } else if (jugador.dir === 'left') {
-          jugador.x -= 10;
+        } else {
+          jugador.x -= velocidad;
           if (jugador.x < -anchoVisible) {
             changeScene(-1);
             jugador.x = canvas.width;
@@ -161,7 +177,6 @@
     function loop(timestamp) {
       if (!tiempoUltimoFrame) tiempoUltimoFrame = timestamp;
       const tiempoTranscurrido = timestamp - tiempoUltimoFrame;
-
       if (tiempoTranscurrido >= intervaloFrame) {
         update();
         tiempoUltimoFrame = timestamp;
@@ -172,18 +187,23 @@
 
     function changeScene(dir) {
       const nextIndex = escenarioActual.index + dir;
-
       if (nextIndex >= 0 && nextIndex < escenarioActual.total) {
         jugador.walking = false;
         jugador.frame = 0;
 
-        escenarioActual.index = nextIndex;
+        if (escenas[escenarioActual.index] === '6.Fantasmas.png') {
+          ring.pause();
+          ring.currentTime = 0;
+        }
 
+        escenarioActual.index = nextIndex;
         escenario.onload = () => {
           jugador.walking = true;
           jugador.x = dir > 0 ? -jugador.frameWidth * escala : canvas.width;
+          if (escenas[escenarioActual.index] === '6.Fantasmas.png') {
+            ring.play().catch(err => console.warn("No se pudo reproducir el ring:", err));
+          }
         };
-
         escenario.src = escenas[escenarioActual.index];
       } else {
         jugador.x = dir > 0
@@ -201,18 +221,47 @@
     document.getElementById('left').addEventListener('touchend', stop);
     document.getElementById('right').addEventListener('touchend', stop);
 
-    // 🔊 Inicializar audio con primer toque/click
     let audioInicializado = false;
     function inicializarAudio() {
       if (audioInicializado) return;
       audioInicializado = true;
       bgm.volume = 0.5;
       pasos.volume = 1;
+      ring.volume = 1;
       bgm.play().catch(err => console.warn("Música bloqueada por el navegador:", err));
     }
 
     document.body.addEventListener('click', inicializarAudio, { once: true });
     document.body.addEventListener('touchstart', inicializarAudio, { once: true });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        bgm.pause();
+        ring.pause();
+      } else if (audioInicializado) {
+        bgm.play().catch(() => {});
+        if (escenas[escenarioActual.index] === '6.Fantasmas.png') {
+          ring.play().catch(() => {});
+        }
+      }
+    });
+  </script>
+
+  <!-- Prevención de selección y arrastre -->
+  <script>
+    document.querySelectorAll('img, button').forEach(el => {
+      el.oncontextmenu = e => e.preventDefault();
+      el.onselectstart = e => e.preventDefault();
+      el.onmousedown = e => e.preventDefault();
+      el.ontouchstart = e => {
+        if (e.touches.length > 1) e.preventDefault();
+      };
+      el.setAttribute('draggable', 'false');
+      el.style.userSelect = 'none';
+      el.style.webkitUserSelect = 'none';
+      el.style.msUserSelect = 'none';
+      el.style.webkitTouchCallout = 'none';
+    });
   </script>
 </body>
 </html>
