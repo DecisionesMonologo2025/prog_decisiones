@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Decisiones</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: black;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      image-rendering: pixelated;
+    }
+    .controls {
+      position: absolute;
+      bottom: 10px;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+    }
+    .controls button {
+      width: 64px;
+      height: 64px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .controls img {
+      width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="360" height="640"></canvas>
+
+  <!-- Audio solo una vez -->
+  <audio id="bgm" src="fondo_decisiones.mp3" loop></audio>
+  <audio id="steps" src="pasos_decisiones.mp3" loop></audio>
+
+  <div class="controls">
+    <button id="left"><img src="boton_izquierdo.png" alt="Izquierda"></button>
+    <button id="right"><img src="boton_derecho.png" alt="Derecha"></button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const escenas = [
+      '1.Javier.png',
+      '2.Christian.png',
+      '3.Intro.png',
+      '4.Abraham.png',
+      '5.Adrián.png'
+    ];
+
+    const escenarioActual = {
+      index: 2,
+      total: escenas.length
+    };
+
+    const jugador = {
+      x: 50,
+      y: 242,
+      dir: 'right',
+      walking: false,
+      frame: 0,
+      frameWidth: 336,
+      frameHeight: 624,
+      spriteSheet: new Image()
+    };
+    jugador.spriteSheet.src = 'mauricio.png';
+
+    const escenario = new Image();
+    escenario.src = escenas[escenarioActual.index];
+
+    let assetsCargados = 0;
+
+    jugador.spriteSheet.onload = () => {
+      assetsCargados++;
+      if (assetsCargados === 2) requestAnimationFrame(loop);
+    };
+
+    escenario.onload = () => {
+      assetsCargados++;
+      if (assetsCargados === 2) requestAnimationFrame(loop);
+    };
+
+    const pasos = document.getElementById('steps');
+    const bgm = document.getElementById('bgm');
+
+    const escala = 0.3;
+    const anchoVisible = jugador.frameWidth * escala;
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(escenario, 0, 0, canvas.width, canvas.height);
+
+      const cols = 3;
+      const sx = (jugador.frame % cols) * jugador.frameWidth;
+
+      let fila = 0;
+      if (jugador.dir === 'left') fila = 2;
+      else if (!jugador.walking) fila = 1;
+
+      const sy = fila * jugador.frameHeight;
+
+      ctx.drawImage(
+        jugador.spriteSheet,
+        sx, sy,
+        jugador.frameWidth, jugador.frameHeight,
+        Math.floor(jugador.x), Math.floor(jugador.y),
+        jugador.frameWidth * escala, jugador.frameHeight * escala
+      );
+    }
+
+    function update() {
+      if (jugador.walking) {
+        jugador.frame = (jugador.frame + 1) % 4;
+
+        if (jugador.dir === 'right') {
+          jugador.x += 25;
+          if (jugador.x > canvas.width) {
+            changeScene(1);
+            jugador.x = -anchoVisible;
+          }
+        } else if (jugador.dir === 'left') {
+          jugador.x -= 10;
+          if (jugador.x < -anchoVisible) {
+            changeScene(-1);
+            jugador.x = canvas.width;
+          }
+        }
+      } else {
+        jugador.frame = 0;
+      }
+    }
+
+    function move(direction) {
+      jugador.dir = direction;
+      jugador.walking = true;
+      pasos.play();
+    }
+
+    function stop() {
+      jugador.walking = false;
+      pasos.pause();
+      pasos.currentTime = 0;
+    }
+
+    let tiempoUltimoFrame = 0;
+    const intervaloFrame = 250;
+
+    function loop(timestamp) {
+      if (!tiempoUltimoFrame) tiempoUltimoFrame = timestamp;
+      const tiempoTranscurrido = timestamp - tiempoUltimoFrame;
+
+      if (tiempoTranscurrido >= intervaloFrame) {
+        update();
+        tiempoUltimoFrame = timestamp;
+      }
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function changeScene(dir) {
+      const nextIndex = escenarioActual.index + dir;
+
+      if (nextIndex >= 0 && nextIndex < escenarioActual.total) {
+        jugador.walking = false;
+        jugador.frame = 0;
+
+        escenarioActual.index = nextIndex;
+
+        escenario.onload = () => {
+          jugador.walking = true;
+          jugador.x = dir > 0 ? -jugador.frameWidth * escala : canvas.width;
+        };
+
+        escenario.src = escenas[escenarioActual.index];
+      } else {
+        jugador.x = dir > 0
+          ? canvas.width - jugador.frameWidth * escala
+          : 0;
+      }
+    }
+
+    document.getElementById('left').addEventListener('mousedown', () => move('left'));
+    document.getElementById('right').addEventListener('mousedown', () => move('right'));
+    document.getElementById('left').addEventListener('mouseup', stop);
+    document.getElementById('right').addEventListener('mouseup', stop);
+    document.getElementById('left').addEventListener('touchstart', () => move('left'));
+    document.getElementById('right').addEventListener('touchstart', () => move('right'));
+    document.getElementById('left').addEventListener('touchend', stop);
+    document.getElementById('right').addEventListener('touchend', stop);
+
+    // 🔊 Inicializar audio con primer toque/click
+    let audioInicializado = false;
+    function inicializarAudio() {
+      if (audioInicializado) return;
+      audioInicializado = true;
+      bgm.volume = 0.5;
+      pasos.volume = 1;
+      bgm.play().catch(err => console.warn("Música bloqueada por el navegador:", err));
+    }
+
+    document.body.addEventListener('click', inicializarAudio, { once: true });
+    document.body.addEventListener('touchstart', inicializarAudio, { once: true });
+  </script>
+</body>
+</html>
